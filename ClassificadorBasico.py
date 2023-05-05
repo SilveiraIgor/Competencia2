@@ -106,7 +106,7 @@ def treinar(model, inputs, target):
         #r = torch.tensor(target[index], dtype=torch.long)
         r = target[index]
         #print(r)
-        print(output, r)
+        #print(output, r)
         loss = loss_fn(output, r)
         vetor_loss.append(loss.item())
         loss.backward()
@@ -164,6 +164,12 @@ def testar(model, inputs, target):
     print("Porcentagem das classes: ", acuracia_classe(respostas, target))
     print("Total acc: ", metrics.accuracy_score(target, respostas))
 
+
+#modelo = 'xlm-roberta-large'
+modelo = "neuralmind/bert-base-portuguese-cased"
+tokenizer = AutoTokenizer.from_pretrained(modelo,model_max_length=512, truncation=True, do_lower_case=False)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
 ds = Dataset(1)
 texto_treinamento, nota_treinamento = ds.gerarTreinamento()
 texto_teste, nota_teste = ds.gerarTeste()
@@ -173,11 +179,6 @@ print(len(novos_inputs))
 novas_notas = TransformarNotasEmVetor(texto_treinamento, nota_treinamento)
 print(len(novas_notas))
 model2 = CustomModel().to(device)
-#modelo = 'xlm-roberta-large'
-modelo = "neuralmind/bert-base-portuguese-cased"
-tokenizer = AutoTokenizer.from_pretrained(modelo,model_max_length=512, truncation=True, do_lower_case=False)
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(device)
 pesos = sklearn.utils.class_weight.compute_class_weight('balanced', classes=[0.0,1.0,2.0,3.0,4.0,5.0], y=nota_treinamento)
 pesos = torch.tensor(pesos).float().to("cuda")
 print(pesos)
