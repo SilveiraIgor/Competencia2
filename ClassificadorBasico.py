@@ -144,7 +144,9 @@ def acuracia_classe(respostas, gold_labels):
     print("Dist: ", classes_certas, sum(classes_certas))
     return porcentagem_final
 
-def testar(model, inputs, target):
+maior_qwk = -2
+def testar(model, inputs, target, tipo):
+    global maior_qwk
     respostas = []
     for index in range(len(inputs)):
         #notas_parciais = []
@@ -158,7 +160,12 @@ def testar(model, inputs, target):
             nota_final = np.argmax(nota)
         respostas.append(nota_final)
     #print(respostas)
-    print("QWK: ", metrics.cohen_kappa_score(target, respostas, weights='quadratic'))
+    QWK = metrics.cohen_kappa_score(target, respostas, weights='quadratic')
+    if(tipo=="validacao"):
+        if (QWK > maior_qwk):
+            print("Encontrei uma QWK maior <<<<<")
+            maior_qwk = QWK
+    print("QWK: ", QWK)
     #print("RMSE: ", metrics.mean_squared_error(target, respostas, squared=False))
     print("MSE: ", metrics.mean_squared_error(target, respostas, squared=True))
     print("Porcentagem das classes: ", acuracia_classe(respostas, target))
@@ -187,8 +194,8 @@ for i in range(5):
     print("Iteracao ", i+1)
     treinar(model2, novos_inputs, novas_notas)
     print("-- Treinamento: ")
-    testar(model2, texto_treinamento, nota_treinamento)
+    testar(model2, texto_treinamento, nota_treinamento, "treinamento")
     print("--Validacao:")
-    testar(model2, texto_valid, nota_valid)
+    testar(model2, texto_valid, nota_valid, "validacao")
     print("--Teste:")
-    testar(model2, texto_teste, nota_teste)
+    testar(model2, texto_teste, nota_teste, "teste")
