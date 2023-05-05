@@ -1,9 +1,12 @@
 from build_dataset import Corpus
 from sklearn.metrics import mean_squared_error, r2_score, mean_squared_error, mean_absolute_error
-from skll import metrics as m
 import numpy as np
+from transformers import AutoTokenizer
+from transformers import AutoModel
 from sklearn import metrics
-
+import os
+import torch
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 class Dataset:
     def __init__(self, competence):
@@ -52,19 +55,7 @@ class Dataset:
             textos.append(texto)
         return textos, notas
 
-ds = Dataset(1)
-texto_treinamento, nota_treinamento = ds.gerarTreinamento()
-texto_teste, nota_teste = ds.gerarTeste()
-texto_valid, nota_valid = ds.gerarValidacao()
-import torch
-from transformers import AutoTokenizer
-from transformers import AutoModel
 
-modelo = 'xlm-roberta-large'
-#modelo = "neuralmind/bert-large-portuguese-cased"
-tokenizer = AutoTokenizer.from_pretrained(modelo,model_max_length=512, truncation=True, do_lower_case=False)
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(device)
 def TransformarTextoEmInput(textos):
     tokenizados = []
     for indice in range(len(textos)):
@@ -79,11 +70,6 @@ def TransformarNotasEmVetor(textos, notas):
     for indice in range(len(textos)):
             novas_notas.append(torch.tensor(notas[indice]).unsqueeze(0).to(device))
     return novas_notas
-
-novos_inputs = TransformarTextoEmInput(texto_treinamento)
-print(len(novos_inputs))
-novas_notas = TransformarNotasEmVetor(texto_treinamento, nota_treinamento)
-print(len(novas_notas))
 
 import torch.nn as nn
 
@@ -100,7 +86,6 @@ class CustomModel(nn.Module):
             outputs = outputs.last_hidden_state[0][0]
         logits = self.classifier(outputs) 
         return logits
-model2 = CustomModel().to(device)
 
 def treinar(model, inputs, target):
     loss_fn = torch.nn.MSELoss()
@@ -152,14 +137,10 @@ def acuracia_classe(respostas, gold_labels):
 def testar(model, inputs, target):
     respostas = []
     for index in range(len(inputs)):
-        #notas_parciais = []
         with torch.no_grad():
             tokenizado = TokenizarUmParagrafo(inputs[index])
             output = model(tokenizado)
             nota = output.cpu().detach().numpy()
-            #notas_parciais.append(nota)
-            #print(len(notas_parciais))
-            #nota_final = np.rint(np.average(notas_parciais))
             nota_final = np.rint(nota[0])
         respostas.append(nota_final)
     #print(respostas)
@@ -169,6 +150,20 @@ def testar(model, inputs, target):
     print("Porcentagem das classes: ", acuracia_classe(respostas, target))
     print("Total acc: ", metrics.accuracy_score(target, respostas))
 
+ds = Dataset(1)
+texto_treinamento, nota_treinamento = ds.gerarTreinamento()
+texto_teste, nota_teste = ds.gerarTeste()
+texto_valid, nota_valid = ds.gerarValidacao()
+modelo = 'xlm-roberta-large'
+#modelo = "neuralmind/bert-large-portuguese-cased"
+tokenizer = AutoTokenizer.from_pretrained(modelo,model_max_length=512, truncation=True, do_lower_case=False)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
+novos_inputs = TransformarTextoEmInput(texto_treinamento)
+print(len(novos_inputs))
+novas_notas = TransformarNotasEmVetor(texto_treinamento, nota_treinamento)
+print(len(novas_notas))
+model2 = CustomModel().to(device)
 for i in range(5):
     print("Iteracao ", i+1)
     treinar(model2, novos_inputs, novas_notas)

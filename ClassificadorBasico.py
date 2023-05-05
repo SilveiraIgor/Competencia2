@@ -1,12 +1,12 @@
 from build_dataset import Corpus
-from sklearn.metrics import mean_squared_error, r2_score, mean_squared_error, mean_absolute_error
-from skll import metrics as m
 import numpy as np
 from sklearn import metrics
 import sklearn
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
+import torch
+from transformers import AutoTokenizer
+from transformers import AutoModel
 
 class Dataset:
     def __init__(self, competence):
@@ -54,24 +54,6 @@ class Dataset:
             notas.append( float(row['competence'][self.competence] / 40))
             textos.append(texto)
         return textos, notas
-    
-ds = Dataset(1)
-texto_treinamento, nota_treinamento = ds.gerarTreinamento()
-texto_teste, nota_teste = ds.gerarTeste()
-texto_valid, nota_valid = ds.gerarValidacao()
-
-import torch
-from transformers import AutoTokenizer
-from transformers import AutoModel
-
-#modelo = 'xlm-roberta-large'
-modelo = "neuralmind/bert-base-portuguese-cased"
-tokenizer = AutoTokenizer.from_pretrained(modelo,model_max_length=512, truncation=True, do_lower_case=False)
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(device)
-pesos = sklearn.utils.class_weight.compute_class_weight('balanced', classes=[0.0,1.0,2.0,3.0,4.0,5.0], y=nota_treinamento)
-pesos = torch.tensor(pesos).float().to("cuda")
-print(pesos)
 
 def TransformarTextoEmInput(textos):
     tokenizados = []
@@ -88,10 +70,7 @@ def TransformarNotasEmVetor(textos, notas):
             novas_notas.append(torch.tensor(int(notas[indice]), dtype=torch.long).unsqueeze(0).to(device))
     return novas_notas
 
-novos_inputs = TransformarTextoEmInput(texto_treinamento)
-print(len(novos_inputs))
-novas_notas = TransformarNotasEmVetor(texto_treinamento, nota_treinamento)
-print(len(novas_notas))
+
 
 import torch.nn as nn
 
@@ -108,7 +87,6 @@ class CustomModel(nn.Module):
             outputs = outputs.last_hidden_state[0][0]
         logits = self.classifier(outputs) 
         return logits
-model2 = CustomModel().to(device)
 
 def treinar(model, inputs, target):
     #loss_fn = torch.nn.MSELoss()
@@ -185,6 +163,24 @@ def testar(model, inputs, target):
     print("MSE: ", metrics.mean_squared_error(target, respostas, squared=True))
     print("Porcentagem das classes: ", acuracia_classe(respostas, target))
     print("Total acc: ", metrics.accuracy_score(target, respostas))
+
+ds = Dataset(1)
+texto_treinamento, nota_treinamento = ds.gerarTreinamento()
+texto_teste, nota_teste = ds.gerarTeste()
+texto_valid, nota_valid = ds.gerarValidacao()
+novos_inputs = TransformarTextoEmInput(texto_treinamento)
+print(len(novos_inputs))
+novas_notas = TransformarNotasEmVetor(texto_treinamento, nota_treinamento)
+print(len(novas_notas))
+model2 = CustomModel().to(device)
+#modelo = 'xlm-roberta-large'
+modelo = "neuralmind/bert-base-portuguese-cased"
+tokenizer = AutoTokenizer.from_pretrained(modelo,model_max_length=512, truncation=True, do_lower_case=False)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(device)
+pesos = sklearn.utils.class_weight.compute_class_weight('balanced', classes=[0.0,1.0,2.0,3.0,4.0,5.0], y=nota_treinamento)
+pesos = torch.tensor(pesos).float().to("cuda")
+print(pesos)
 
 for i in range(5):
     print("Iteracao ", i+1)
